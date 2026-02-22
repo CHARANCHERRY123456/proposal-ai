@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://govpreneurs.com/schemas/user-profile.json",
+  "title": "User Profile",
+  "description": "Firm profile for opportunity matching and RAG (proposal drafting).",
+  "type": "object",
+  "required": ["companyName"],
+  "properties": {
+    "companyId": {
+      "type": ["string", "null"],
+      "description": "Internal unique id. Primary key for lookups."
+    },
+    "companyName": {
+      "type": "string",
+      "description": "Company / firm name."
+    },
+    "website": {
+      "type": ["string", "null"],
+      "description": "Company website URL."
+    },
+    "location": {
+      "type": ["object", "null"],
+      "properties": {
+        "city": { "type": ["string", "null"] },
+        "state": { "type": ["string", "null"] },
+        "country": { "type": ["string", "null"] }
+      },
+      "description": "Company location."
+    },
+    "yearsOfExperience": {
+      "type": ["number", "null"],
+      "description": "Years in business / experience."
+    },
+    "teamSize": {
+      "type": ["number", "null"],
+      "description": "Number of employees / team size."
+    },
+    "naicsCodes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "NAICS codes. For opportunity matching."
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of capability labels, e.g. Physical Security, Access Control."
+    },
+    "certifications": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "e.g. Small Business, SDVOSB, ISO 9001."
+    },
+    "pastPerformance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "projectName": { "type": ["string", "null"] },
+          "client": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "projectValue": { "type": ["number", "null"] },
+          "year": { "type": ["number", "null"] },
+          "keywords": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "description": "Past contracts. For RAG and proposal matching."
+    },
+    "capabilitiesStatement": {
+      "type": ["string", "null"],
+      "description": "Full capabilities narrative. Chunked for RAG."
+    },
+    "setAsideType": {
+      "type": ["string", "null"],
+      "description": "Set-aside code: SBA, 8A, SDVOSBC, WOSB, VSA. For opportunity matching."
+    },
+    "uei": {
+      "type": ["string", "null"],
+      "description": "Unique Entity ID (SAM.gov)."
+    },
+    "cageCode": {
+      "type": ["string", "null"],
+      "description": "CAGE code. Federal contracting."
+    },
+    "contact": {
+      "type": ["object", "null"],
+      "properties": {
+        "fullName": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"] },
+        "phone": { "type": ["string", "null"] },
+        "address": { "type": ["string", "null"] }
+      },
+      "description": "Primary point of contact."
+    },
+    "createdAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Profile creation. ISO 8601."
+    },
+    "updatedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Last update. ISO 8601."
+    }
+  },
+  "additionalProperties": false
+}

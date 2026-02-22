@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://govpreneurs.com/schemas/govpreneurs-opportunity.json",
+  "title": "GovPreneurs Opportunity",
+  "description": "Minimal contract opportunity from SAM.gov for matching users and AI (RAG, proposal drafting).",
+  "type": "object",
+  "required": ["noticeId", "title", "postedDate"],
+  "properties": {
+    "noticeId": {
+      "type": "string",
+      "description": "Unique SAM.gov notice ID. Primary key for dedup and re-fetch."
+    },
+    "solicitationNumber": {
+      "type": ["string", "null"],
+      "description": "Official solicitation number. Display and lookup."
+    },
+    "title": {
+      "type": "string",
+      "description": "Opportunity title. For AI search, summarization, and proposal context."
+    },
+    "fullParentPathName": {
+      "type": ["string", "null"],
+      "description": "Agency hierarchy. Filter and display."
+    },
+    "postedDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Posted date (YYYY-MM-DD). Recency and ingestion."
+    },
+    "type": {
+      "type": ["string", "null"],
+      "description": "Notice type: Solicitation, Presolicitation, Special Notice, etc."
+    },
+    "archiveDate": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "When notice archives. Filter active vs expired."
+    },
+    "typeOfSetAside": {
+      "type": ["string", "null"],
+      "description": "Set-Aside code (SBA, 8A, SDVOSBC, WOSB, VSA). Match user eligibility."
+    },
+    "typeOfSetAsideDescription": {
+      "type": ["string", "null"],
+      "description": "Human-readable Set-Aside. Display and AI."
+    },
+    "responseDeadLine": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Response deadline. Prioritization and AI context."
+    },
+    "naicsCode": {
+      "type": ["string", "null"],
+      "description": "Primary NAICS (max 6 digits). Match user capabilities."
+    },
+    "naicsCodes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "All NAICS codes. Match user NAICS to opportunities."
+    },
+    "active": {
+      "type": "string",
+      "enum": ["Yes", "No"],
+      "description": "Active or archived. Filter open opportunities."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "URL to full notice text. Fetch for RAG; append API key."
+    },
+    "scopeOfWorkText": {
+      "type": ["string", "null"],
+      "description": "Fetched text from description URL. For RAG chunking and AI."
+    },
+    "resourceLinks": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "URLs to attachments (e.g. RFP PDFs). For proposal drafting and RAG."
+    },
+    "pointOfContact": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "fullName": { "type": ["string", "null"] },
+          "email": { "type": ["string", "null"] },
+          "phone": { "type": ["string", "null"] }
+        }
+      },
+      "description": "POC(s). Display and compliance."
+    },
+    "placeOfPerformance": {
+      "type": ["object", "null"],
+      "description": "Where work is performed. Geographic matching.",
+      "properties": {
+        "city": {
+          "type": ["object", "null"],
+          "properties": {
+            "name": { "type": ["string", "null"] }
+          }
+        },
+        "state": {
+          "type": ["object", "null"],
+          "properties": {
+            "code": { "type": ["string", "null"] },
+            "name": { "type": ["string", "null"] }
+          }
+        },
+        "country": {
+          "type": ["object", "null"],
+          "properties": {
+            "code": { "type": ["string", "null"] },
+            "name": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "uiLink": {
+      "type": ["string", "null"],
+      "description": "Link to view on SAM.gov. Citations and trust."
+    },
+    "ingestedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When we last ingested/updated (ISO 8601). Freshness and upserts."
+    }
+  },
+  "additionalProperties": false
+}

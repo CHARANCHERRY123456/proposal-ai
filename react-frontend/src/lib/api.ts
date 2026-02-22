@@ -1,0 +1,93 @@
+const BASE_URL = import.meta.env.VITE_API_URL || "";
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = localStorage.getItem("access_token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Request failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Types
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  companyId: string;
+}
+
+export interface Opportunity {
+  noticeId: string;
+  title: string;
+  solicitationNumber: string;
+  postedDate: string;
+  responseDeadLine: string;
+  type: string;
+  typeOfSetAsideDescription: string;
+  naicsCodes: string[];
+}
+
+export interface OpportunitiesResponse {
+  items: Opportunity[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface RagChunk {
+  id: string;
+  score: number;
+  text: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface DraftProposalResponse {
+  opportunity: Record<string, unknown>;
+  company: Record<string, unknown>;
+  attachments: Record<string, unknown>;
+  ragChunks: RagChunk[];
+  draft: string;
+}
+
+// API calls
+export const api = {
+  login: (companyId: string) =>
+    request<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ companyId }),
+    }),
+
+  getOpportunities: (limit = 50, offset = 0) =>
+    request<OpportunitiesResponse>(
+      `/opportunities?limit=${limit}&offset=${offset}`
+    ),
+
+  createDraftProposal: (noticeId: string, companyId: string) =>
+    request<DraftProposalResponse>("/draft-proposal", {
+      method: "POST",
+      body: JSON.stringify({ noticeId, companyId, includeDraft: true }),
+    }),
+};

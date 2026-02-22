@@ -1,0 +1,6 @@
+.env
+venv
+nul
+__pycache__
+pinecone.py
+downloads/
