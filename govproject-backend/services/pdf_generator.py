@@ -39,20 +39,66 @@ def markdown_to_paragraphs(text: str, styles) -> list:
     # Remove citations for clean professional PDF
     text = remove_citations(text)
     
-    # Split text by headings that might be inline (e.g., "### 1. Heading Text content")
-    # Pattern: ### followed by number and heading, then content
-    parts = re.split(r'(###\s+\d+\.\s+[^\n]+)', text)
-    
     elements = []
+    lines = text.split("\n")
     current_paragraph = []
     
-    for part in parts:
-        part = part.strip()
-        if not part:
+    for line in lines:
+        original_line = line
+        line = line.strip()
+        
+        # Empty line - flush current paragraph
+        if not line:
+            if current_paragraph:
+                para_text = " ".join(current_paragraph)
+                if para_text.strip():
+                    # Only bold text that's explicitly marked with **
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
+                current_paragraph = []
             continue
         
-        # Check if this part is a heading (starts with ###)
-        if part.startswith("### "):
+        # Check for headings at start of line
+        if line.startswith("### "):
+            # Flush current paragraph first
+            if current_paragraph:
+                para_text = " ".join(current_paragraph)
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
+                current_paragraph = []
+            # Add heading (remove ### prefix)
+            heading_text = line[4:].strip()
+            elements.append(Spacer(1, 0.2 * inch))
+            elements.append(Paragraph(heading_text, styles["Heading3"]))
+            elements.append(Spacer(1, 0.1 * inch))
+        elif line.startswith("## "):
+            if current_paragraph:
+                para_text = " ".join(current_paragraph)
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
+                current_paragraph = []
+            heading_text = line[3:].strip()
+            elements.append(Spacer(1, 0.2 * inch))
+            elements.append(Paragraph(heading_text, styles["Heading2"]))
+            elements.append(Spacer(1, 0.12 * inch))
+        elif line.startswith("# "):
+            if current_paragraph:
+                para_text = " ".join(current_paragraph)
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
+                current_paragraph = []
+            heading_text = line[2:].strip()
+            elements.append(Spacer(1, 0.25 * inch))
+            elements.append(Paragraph(heading_text, styles["Heading1"]))
+            elements.append(Spacer(1, 0.15 * inch))
+        elif line.startswith("- ") or line.startswith("* "):
             # Flush current paragraph
             if current_paragraph:
                 para_text = " ".join(current_paragraph)
@@ -61,79 +107,15 @@ def markdown_to_paragraphs(text: str, styles) -> list:
                     elements.append(Paragraph(para_text, styles["Normal"]))
                     elements.append(Spacer(1, 0.12 * inch))
                 current_paragraph = []
-            
-            # Extract heading number and text (e.g., "### 1. Executive Summary")
-            match = re.match(r'###\s+(\d+\.)\s+(.+)', part)
-            if match:
-                heading_num = match.group(1)
-                heading_text = match.group(2)
-                # Add heading with number
-                elements.append(Spacer(1, 0.2 * inch))
-                elements.append(Paragraph(f"{heading_num} {heading_text}", styles["Heading3"]))
-                elements.append(Spacer(1, 0.1 * inch))
-            else:
-                # Just the heading text
-                heading_text = part[4:].strip()
-                elements.append(Spacer(1, 0.2 * inch))
-                elements.append(Paragraph(heading_text, styles["Heading3"]))
-                elements.append(Spacer(1, 0.1 * inch))
-        
-        elif part.startswith("## "):
-            if current_paragraph:
-                para_text = " ".join(current_paragraph)
-                if para_text.strip():
-                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
-                    elements.append(Paragraph(para_text, styles["Normal"]))
-                    elements.append(Spacer(1, 0.12 * inch))
-                current_paragraph = []
-            heading_text = part[3:].strip()
-            elements.append(Spacer(1, 0.2 * inch))
-            elements.append(Paragraph(heading_text, styles["Heading2"]))
-            elements.append(Spacer(1, 0.12 * inch))
-        
-        elif part.startswith("# "):
-            if current_paragraph:
-                para_text = " ".join(current_paragraph)
-                if para_text.strip():
-                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
-                    elements.append(Paragraph(para_text, styles["Normal"]))
-                    elements.append(Spacer(1, 0.12 * inch))
-                current_paragraph = []
-            heading_text = part[2:].strip()
-            elements.append(Spacer(1, 0.25 * inch))
-            elements.append(Paragraph(heading_text, styles["Heading1"]))
-            elements.append(Spacer(1, 0.15 * inch))
-        
+            # Bullet point
+            bullet_text = line[2:].strip()
+            bullet_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', bullet_text)
+            elements.append(Paragraph(f"• {bullet_text}", styles["Normal"]))
+            elements.append(Spacer(1, 0.06 * inch))
         else:
-            # Regular content - split by lines and process
-            lines = part.split("\n")
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    if current_paragraph:
-                        para_text = " ".join(current_paragraph)
-                        if para_text.strip():
-                            para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
-                            elements.append(Paragraph(para_text, styles["Normal"]))
-                            elements.append(Spacer(1, 0.12 * inch))
-                        current_paragraph = []
-                    continue
-                
-                if line.startswith("- ") or line.startswith("* "):
-                    if current_paragraph:
-                        para_text = " ".join(current_paragraph)
-                        if para_text.strip():
-                            para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
-                            elements.append(Paragraph(para_text, styles["Normal"]))
-                            elements.append(Spacer(1, 0.12 * inch))
-                        current_paragraph = []
-                    bullet_text = line[2:].strip()
-                    bullet_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', bullet_text)
-                    elements.append(Paragraph(f"• {bullet_text}", styles["Normal"]))
-                    elements.append(Spacer(1, 0.06 * inch))
-                else:
-                    line = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line)
-                    current_paragraph.append(line)
+            # Regular paragraph text - only bold what's explicitly marked
+            line = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line)
+            current_paragraph.append(line)
     
     # Add remaining paragraph
     if current_paragraph:
@@ -216,8 +198,9 @@ def generate_pdf(draft_text: str, title: str = "Proposal Draft", company_name: O
         textColor="black",
         leading=16,
         spaceAfter=8,
-        alignment=4,  # Justify text
+        alignment=0,  # Left align (not justify)
         firstLineIndent=0,
+        fontName="Helvetica",  # Regular font, not bold
     )
     
     custom_styles = {
