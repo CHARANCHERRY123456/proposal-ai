@@ -13,6 +13,19 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOWNLOAD_DIR = _PROJECT_ROOT / "downloads"
 SUPPORTED_EXT = (".pdf", ".xlsx", ".txt")
 
+INCLUDE_KEYWORDS = ["scope", "requirement", "specification", "solicitation", "terms", "condition", "work", "technical", "statement", "criteria", "evaluation"]
+EXCLUDE_KEYWORDS = ["questionnaire", "form", "template", "blank", "example", "sample"]
+
+
+def _should_include_file(filename: str) -> bool:
+    name_lower = filename.lower()
+    for exclude in EXCLUDE_KEYWORDS:
+        if exclude in name_lower:
+            return False
+    for include in INCLUDE_KEYWORDS:
+        if include in name_lower:
+            return True
+    return True
 
 def run_ingest(
     notice_id: str,
@@ -32,6 +45,8 @@ def run_ingest(
 
     for name in sorted(os.listdir(dir_path)):
         if (os.path.splitext(name)[1] or "").lower() not in SUPPORTED_EXT:
+            continue
+        if not _should_include_file(name):
             continue
         path = dir_path / name
         if not path.is_file():
