@@ -1,6 +1,7 @@
 # GovPreneurs — Auto‑Proposal Engine (AI Proposal Drafting)
 
-Live frontend: `https://proposal-ai-one.vercel.app/`
+- **Live frontend**: `https://proposal-ai-one.vercel.app/`
+- **Live backend**: `https://proposal-ai.onrender.com`
 
 This project helps a small business go from **finding a government opportunity** to **generating + refining a proposal draft** quickly, with **citations** for trust and a **PDF export** for submission-ready output.
 
@@ -85,7 +86,9 @@ This project helps a small business go from **finding a government opportunity**
 
 ### Frontend (`react-frontend/.env`)
 
-- `VITE_API_URL` — Backend base URL (example: `http://127.0.0.1:8000`)
+- `VITE_API_URL` — Backend base URL
+  - **Production**: `https://proposal-ai.onrender.com`
+  - **Local**: `http://127.0.0.1:8000`
 
 ---
 
@@ -111,7 +114,7 @@ From `react-frontend/`:
 
 ### Frontend (Vercel)
 
-- Set `VITE_API_URL` to your backend URL
+- Set `VITE_API_URL` to `https://proposal-ai.onrender.com`
 - Deploy `react-frontend/`
 
 ### Backend (Render)
