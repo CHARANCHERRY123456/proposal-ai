@@ -18,4 +18,4 @@ async def draft_proposal(req: DraftProposalRequest):
         raise HTTPException(status_code=404, detail="Opportunity not found")
     if not profile:
         raise HTTPException(status_code=404, detail="User profile not found")
-    return get_proposal_details(opp, profile, include_draft=req.includeDraft)
+    return await get_proposal_details(opp, profile, include_draft=req.includeDraft)

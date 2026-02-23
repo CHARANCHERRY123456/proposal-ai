@@ -112,7 +112,7 @@ def _to_company_details(profile: dict) -> dict:
     return {k: profile.get(k) for k in COMPANY_KEYS}
 
 
-def get_proposal_details(
+async def get_proposal_details(
     opp: dict,
     profile: dict,
     *,
@@ -131,7 +131,7 @@ def get_proposal_details(
         try:
             from rag.ingest import run_ingest
             from rag.retrieve import retrieve
-            run_ingest(notice_id)  # sync: parse, chunk, upsert with text
+            await run_ingest(notice_id)
             query = (opp.get("title") or "") + " scope requirements evaluation criteria"
             rag_chunks = retrieve(query.strip() or "requirements", top_k=rag_top_k, notice_id=notice_id)
         except FileNotFoundError:

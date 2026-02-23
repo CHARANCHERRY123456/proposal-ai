@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 
 from rag.parsers import parse_file
-from rag.chunker import chunk_text
+from rag.chunker import chunk_by_structure
+from db import db
 
 # Resolve downloads dir from project root so it works from any cwd
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,7 +28,7 @@ def _should_include_file(filename: str) -> bool:
             return True
     return True
 
-def run_ingest(
+async def run_ingest(
     notice_id: str,
     chunk_size: int = 500,
     overlap: int = 50,
@@ -35,7 +36,12 @@ def run_ingest(
     """
     For the given notice_id, read all supported files under downloads/<notice_id>/,
     chunk them, and upsert to the vector store. Returns number of chunks upserted.
+    Skips if chunks already exist for this notice_id.
     """
+    existing_count = await db.chunks.count_documents({"noticeId": notice_id})
+    if existing_count > 0:
+        return existing_count
+    
     dir_path = DOWNLOAD_DIR / notice_id
     if not dir_path.is_dir():
         raise FileNotFoundError(f"Directory not found: {dir_path} (run from project root or ensure draft-proposal downloaded files first)")
@@ -55,22 +61,42 @@ def run_ingest(
             text = parse_file(str(path))
         except Exception as e:
             raise RuntimeError(f"Parse failed for {path}: {e}") from e
-        chunks = chunk_text(
+        
+        chunks = chunk_by_structure(
             text,
             metadata={"noticeId": notice_id, "filename": name},
-            chunk_size=chunk_size,
-            overlap=overlap,
+            min_tokens=400,
+            max_tokens=600,
         )
+        
         for c in chunks:
             meta = c["metadata"]
             safe_name = name.replace(" ", "_")[:80]
             chunk_id = f"{notice_id}_{safe_name}_{meta['chunk_index']}"
-            # Pinecone metadata: string values only (include text for RAG retrieval)
+            
+            chunk_doc = {
+                "chunk_id": chunk_id,
+                "noticeId": notice_id,
+                "filename": name,
+                "text": c["text"],
+                "section_name": meta.get("section_name", ""),
+                "section_type": meta.get("section_type", "other"),
+                "is_critical": meta.get("is_critical", False),
+                "chunk_index": meta["chunk_index"],
+            }
+            
+            await db.chunks.replace_one(
+                {"chunk_id": chunk_id},
+                chunk_doc,
+                upsert=True
+            )
+            
             doc_meta = {
+                "chunk_id": chunk_id,
                 "noticeId": str(notice_id),
                 "filename": str(name),
-                "chunk_index": str(meta["chunk_index"]),
-                "text": c["text"][:40000],  # Pinecone metadata limit; keep full chunk
+                "section_type": meta.get("section_type", "other"),
+                "is_critical": str(meta.get("is_critical", False)),
             }
             docs.append({"id": chunk_id, "text": c["text"], "meta": doc_meta})
 
