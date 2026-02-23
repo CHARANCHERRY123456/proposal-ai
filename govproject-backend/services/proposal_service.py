@@ -129,15 +129,22 @@ async def get_proposal_details(
     rag_chunks = []
     if notice_id:
         try:
+            import logging
+            logger = logging.getLogger(__name__)
             from rag.ingest import run_ingest
             from rag.retrieve import retrieve
             await run_ingest(notice_id)
             query = (opp.get("title") or "") + " scope requirements evaluation criteria"
             from rag.retrieve import retrieve
             rag_chunks = await retrieve(query.strip() or "requirements", top_k=rag_top_k, notice_id=notice_id)
+            logger.info(f"[CITATIONS] Retrieved {len(rag_chunks)} chunks for proposal generation")
+            if rag_chunks:
+                logger.info(f"[CITATIONS] First chunk metadata keys: {list(rag_chunks[0].get('metadata', {}).keys())}")
         except FileNotFoundError:
             rag_chunks = []
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[CITATIONS] Error retrieving chunks: {e}", exc_info=True)
             rag_chunks = []
 
     out = {

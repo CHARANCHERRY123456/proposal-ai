@@ -13,23 +13,34 @@ import {
   LogOut,
   Loader2,
   AlertCircle,
+  Paperclip,
 } from "lucide-react";
 
 const Opportunities = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [sortByAttachments, setSortByAttachments] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["opportunities"],
     queryFn: () => api.getOpportunities(50, 0),
   });
 
-  const filtered = data?.items.filter(
+  let filtered = data?.items.filter(
     (o) =>
       o.title.toLowerCase().includes(search.toLowerCase()) ||
       o.solicitationNumber?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Sort by number of attachments (descending) if enabled
+  if (sortByAttachments && filtered) {
+    filtered = [...filtered].sort((a, b) => {
+      const aCount = a.resourceLinks?.length || 0;
+      const bCount = b.resourceLinks?.length || 0;
+      return bCount - aCount;
+    });
+  }
 
   const handleApply = (noticeId: string) => {
     navigate(`/proposal/${encodeURIComponent(noticeId)}`);
@@ -78,15 +89,26 @@ const Opportunities = () => {
           <p className="text-muted-foreground">Browse and apply to open solicitations</p>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by title or solicitation number…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10"
-          />
+        {/* Search and Sort */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by title or solicitation number…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10"
+            />
+          </div>
+          <Button
+            variant={sortByAttachments ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortByAttachments(!sortByAttachments)}
+            className="h-10 gap-2"
+          >
+            <Paperclip className="w-4 h-4" />
+            {sortByAttachments ? "Most Attachments First" : "Sort by Attachments"}
+          </Button>
         </div>
 
         {/* States */}
@@ -163,6 +185,12 @@ function OpportunityCard({
             {opp.type && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-badge-bg text-badge-text font-medium">
                 {opp.type}
+              </span>
+            )}
+            {opp.resourceLinks && opp.resourceLinks.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-primary font-medium">
+                <Paperclip className="w-3 h-3" />
+                {opp.resourceLinks.length} attachment{opp.resourceLinks.length !== 1 ? "s" : ""}
               </span>
             )}
             {opp.responseDeadLine && (

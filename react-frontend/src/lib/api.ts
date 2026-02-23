@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8002";
 
 async function request<T>(
   path: string,
@@ -49,6 +49,7 @@ export interface Opportunity {
   type: string;
   typeOfSetAsideDescription: string;
   naicsCodes: string[];
+  resourceLinks?: string[];
 }
 
 export interface OpportunitiesResponse {
@@ -62,7 +63,17 @@ export interface RagChunk {
   id: string;
   score: number;
   text: string;
-  metadata: Record<string, unknown>;
+  metadata: {
+    chunk_id?: string;
+    noticeId?: string;
+    filename?: string;
+    section_name?: string;
+    section_type?: string;
+    requirement_flag?: boolean;
+    is_critical?: boolean;
+    chunk_index?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface DraftProposalResponse {
