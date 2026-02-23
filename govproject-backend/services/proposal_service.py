@@ -300,3 +300,44 @@ def generate_draft(context: str) -> str:
         "Write a proposal draft based on the above context only."
     )
     return gemini.ask(prompt).strip()
+
+
+REFINEMENT_SYSTEM_PROMPT = """
+You are a government proposal writer refining an existing proposal draft based on user feedback.
+
+OBJECTIVE:
+Refine the provided draft according to the user's specific instructions while maintaining compliance and accuracy.
+
+RULES:
+1. If the user's request is unclear or ambiguous, ask ONE clarifying question in a friendly, professional tone.
+2. If the request is clear, apply the changes while:
+   - Maintaining all compliance requirements
+   - Keeping the same structure unless explicitly asked to change
+   - Preserving accurate information from the original context
+   - Not inventing new information
+3. If the user asks for something that contradicts compliance requirements, politely explain why it cannot be done and suggest an alternative.
+
+OUTPUT:
+- If clarification is needed, respond with: "CLARIFICATION_NEEDED: [your question]"
+- Otherwise, return the refined draft in full.
+"""
+
+
+def refine_draft(context: str, current_draft: str, refinement_prompt: str) -> str:
+    """Refine an existing draft based on user feedback."""
+    gemini = GeminiClient()
+    prompt = (
+        f"{REFINEMENT_SYSTEM_PROMPT}\n\n"
+        f"--- Original Context ---\n{context}\n\n"
+        f"--- Current Draft ---\n{current_draft}\n\n"
+        f"--- User's Refinement Request ---\n{refinement_prompt}\n\n"
+        f"--- Task ---\n"
+        f"Refine the draft according to the user's request. If clarification is needed, respond with 'CLARIFICATION_NEEDED:' followed by your question. Otherwise, return the complete refined draft."
+    )
+    result = gemini.ask(prompt).strip()
+    
+    # Check if clarification is needed
+    if result.startswith("CLARIFICATION_NEEDED:"):
+        return result
+    
+    return result

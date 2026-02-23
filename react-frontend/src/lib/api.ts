@@ -84,6 +84,12 @@ export interface DraftProposalResponse {
   draft: string;
 }
 
+export interface RefineDraftResponse {
+  needsClarification: boolean;
+  clarificationQuestion?: string;
+  draft: string;
+}
+
 // API calls
 export const api = {
   login: (companyId: string) =>
@@ -101,5 +107,11 @@ export const api = {
     request<DraftProposalResponse>("/draft-proposal", {
       method: "POST",
       body: JSON.stringify({ noticeId, companyId, includeDraft: true }),
+    }),
+
+  refineDraft: (noticeId: string, companyId: string, currentDraft: string, refinementPrompt: string) =>
+    request<RefineDraftResponse>("/draft-proposal/refine", {
+      method: "POST",
+      body: JSON.stringify({ noticeId, companyId, currentDraft, refinementPrompt }),
     }),
 };

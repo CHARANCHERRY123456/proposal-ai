@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { api, RagChunk } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText,
   ArrowLeft,
@@ -17,6 +19,9 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  RefreshCw,
+  MessageSquare,
+  History,
 } from "lucide-react";
 
 // Simple markdown-to-sections parser
@@ -86,12 +91,45 @@ const ProposalReview = () => {
   const { noticeId } = useParams<{ noticeId: string }>();
   const navigate = useNavigate();
   const { companyId } = useAuth();
+  const queryClient = useQueryClient();
+  const [currentDraft, setCurrentDraft] = useState<string>("");
+  const [refinementPrompt, setRefinementPrompt] = useState<string>("");
+  const [refinementHistory, setRefinementHistory] = useState<Array<{ prompt: string; draft: string; timestamp: Date }>>([]);
+  const [showRefinementPanel, setShowRefinementPanel] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["proposal", noticeId, companyId],
     queryFn: () => api.createDraftProposal(noticeId!, companyId!),
     enabled: !!noticeId && !!companyId,
     retry: false,
+  });
+
+  // Update current draft when initial data loads
+  useEffect(() => {
+    if (data?.draft && !currentDraft) {
+      setCurrentDraft(data.draft);
+    }
+  }, [data, currentDraft]);
+
+  const refineMutation = useMutation({
+    mutationFn: (prompt: string) => 
+      api.refineDraft(noticeId!, companyId!, currentDraft, prompt),
+    onSuccess: (response) => {
+      if (response.needsClarification) {
+        alert(`Clarification needed: ${response.clarificationQuestion}`);
+      } else {
+        setRefinementHistory(prev => [...prev, {
+          prompt: refinementPrompt,
+          draft: currentDraft,
+          timestamp: new Date(),
+        }]);
+        setCurrentDraft(response.draft);
+        setRefinementPrompt("");
+      }
+    },
+    onError: (error) => {
+      alert(`Error refining draft: ${(error as Error).message}`);
+    },
   });
 
   // Debug: Log citation data
@@ -151,7 +189,7 @@ const ProposalReview = () => {
 
   if (!data) return null;
 
-  const sections = parseSections(data.draft);
+  const sections = parseSections(currentDraft || data.draft);
   const oppTitle = (data.opportunity as any)?.title || "Untitled Opportunity";
   const oppNoticeId = (data.opportunity as any)?.noticeId || noticeId;
   const companyName = (data.company as any)?.name || (data.company as any)?.companyName || "Your Company";
@@ -184,10 +222,99 @@ const ProposalReview = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Trust banner */}
         <div className="mb-8 fade-in">
-          <h1 className="text-2xl font-bold text-foreground mb-1">Your draft is ready</h1>
-          <p className="text-muted-foreground text-sm">
-            Review the AI-generated proposal below. All claims are grounded in the provided sources.
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground mb-1">Your draft is ready</h1>
+              <p className="text-muted-foreground text-sm">
+                Review the AI-generated proposal below. All claims are grounded in the provided sources.
+              </p>
+            </div>
+            <Button
+              variant={showRefinementPanel ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowRefinementPanel(!showRefinementPanel)}
+              className="gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refine Draft
+            </Button>
+          </div>
+          
+          {/* Refinement Panel */}
+          {showRefinementPanel && (
+            <div className="glass-card p-5 mt-4 space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-foreground">Refine Your Draft</h3>
+              </div>
+              <Textarea
+                placeholder="Enter your refinement request (e.g., 'Make the technical approach more detailed', 'Add more emphasis on past performance', 'Shorten the executive summary')..."
+                value={refinementPrompt}
+                onChange={(e) => setRefinementPrompt(e.target.value)}
+                className="min-h-[100px]"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    if (refinementPrompt.trim()) {
+                      refineMutation.mutate(refinementPrompt);
+                    }
+                  }}
+                  disabled={!refinementPrompt.trim() || refineMutation.isPending}
+                  className="gap-2"
+                >
+                  {refineMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Refining...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Apply Refinement
+                    </>
+                  )}
+                </Button>
+                {refinementHistory.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (refinementHistory.length > 0) {
+                        const last = refinementHistory[refinementHistory.length - 1];
+                        setCurrentDraft(last.draft);
+                        setRefinementHistory(prev => prev.slice(0, -1));
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <History className="w-4 h-4" />
+                    Undo Last
+                  </Button>
+                )}
+              </div>
+              {refinementHistory.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <History className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Refinement History ({refinementHistory.length})
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {refinementHistory.slice().reverse().map((item, idx) => (
+                      <div key={idx} className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                        <div className="font-medium">{item.prompt}</div>
+                        <div className="text-[10px] opacity-70">
+                          {item.timestamp.toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

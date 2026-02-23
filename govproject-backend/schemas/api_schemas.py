@@ -11,3 +11,11 @@ class DraftProposalRequest(BaseModel):
     noticeId: str
     companyId: str
     includeDraft: bool = True
+
+
+class RefineDraftRequest(BaseModel):
+    """Request body for POST /draft-proposal/refine."""
+    noticeId: str
+    companyId: str
+    currentDraft: str
+    refinementPrompt: str
