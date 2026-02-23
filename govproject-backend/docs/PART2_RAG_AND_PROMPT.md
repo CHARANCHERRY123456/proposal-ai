@@ -15,7 +15,9 @@ GovPreneurs AI — How the AI generates the proposal.
 
 1. **Ingest**
    - Attachments (e.g. PDF) for the notice are downloaded to `downloads/<noticeId>/`.
-   - Each file is parsed (PDF → text) and split into **chunks** (e.g. 500 chars, 50 char overlap) with metadata: `noticeId`, `filename`, `chunk_index`. Chunking keeps related sentences together so requirements stay in one piece.
+   - Each file is parsed (PDF → text) and split into **chunks** using our context-aware chunking strategy (see `docs/CHUNKING_STRATEGY.md` for details).
+   - Chunking: 400-600 tokens per chunk, respects document structure (headings, sections), detects requirements, handles tables separately, tracks amendments.
+   - Metadata: `noticeId`, `filename`, `chunk_index`, `section_type`, `requirement_flag`, `is_table`, `amendment_number`, `is_latest_version`.
 
 2. **Index**
    - Each chunk is embedded (Gemini embedding model) and upserted into Pinecone with `noticeId` so we can filter by opportunity.
@@ -56,7 +58,8 @@ GovPreneurs AI — How the AI generates the proposal.
 
 **How we match RFP requirements to user experience**
 
-- **Chunking:** Fixed-size chunks with overlap so evaluation criteria and requirement paragraphs are usually in one chunk; retrieval returns the most relevant chunks for “scope requirements evaluation criteria.”
+- **Chunking:** Context-aware, structure-based chunking (400-600 tokens) that respects document sections, detects requirements, and handles tables separately. See `docs/CHUNKING_STRATEGY.md` for full details.
+- **Retrieval:** Semantic search returns top-k chunks filtered by `noticeId` and `is_latest_version = true`, with full text fetched from MongoDB for citations.
 - **Single context:** The model sees both the retrieved RFP text and the full firm profile in one context, so it can align each requirement/criterion to specific past performance or capabilities when the context supports it.
 - **Prompt rules:** The system prompt instructs: (1) use only provided context, (2) for each requirement write a response and tie to firm experience when possible, (3) if there is no relevant experience, say so—do not invent. That keeps matching explicit and avoids hallucination.
 
@@ -141,9 +144,9 @@ If required information is missing, explicitly state:
 
 | Piece            | Location |
 |------------------|----------|
-| Chunking         | `rag/chunker.py` — `chunk_text()` (size/overlap). |
+| Chunking         | `rag/chunker.py` — `chunk_by_structure()` (context-aware, token-based). See `docs/CHUNKING_STRATEGY.md` for details. |
 | Ingest           | `rag/ingest.py` — `run_ingest(notice_id)` (parse, chunk, embed, upsert). |
-| Retrieve         | `rag/retrieve.py` — `retrieve(query_text, top_k, notice_id)`. |
+| Retrieve         | `rag/retrieve.py` — `retrieve(query_text, top_k, notice_id)` (async, fetches full text from MongoDB). |
 | Context building | `services/proposal_service.py` — `build_context(opp, profile, rag_chunks)` (solicitation + RAG chunks + profile). |
 | System prompt    | `services/proposal_service.py` — `SYSTEM_PROMPT`. |
 | Generate draft   | `services/proposal_service.py` — `generate_draft(context)` (uses `GeminiClient.ask()`). |
