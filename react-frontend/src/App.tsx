@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Opportunities from "./pages/Opportunities";
 import ProposalReview from "./pages/ProposalReview";
 import NotFound from "./pages/NotFound";
@@ -20,6 +21,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/signup" element={<Signup />} />
     <Route path="/" element={<Navigate to="/login" replace />} />
     <Route
       path="/opportunities"

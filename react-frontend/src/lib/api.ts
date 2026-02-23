@@ -90,12 +90,33 @@ export interface RefineDraftResponse {
   draft: string;
 }
 
+export interface SignupRequest {
+  companyName: string;
+  companyId?: string;
+  capabilitiesStatement: string;
+  contact?: {
+    email?: string;
+    fullName?: string;
+  };
+}
+
+export interface SignupResponse {
+  companyId: string;
+  message: string;
+}
+
 // API calls
 export const api = {
   login: (companyId: string) =>
     request<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ companyId }),
+    }),
+
+  signup: (profile: SignupRequest) =>
+    request<SignupResponse>("/users", {
+      method: "POST",
+      body: JSON.stringify(profile),
     }),
 
   getOpportunities: (limit = 50, offset = 0) =>
