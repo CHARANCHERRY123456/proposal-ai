@@ -31,3 +31,18 @@ def classify_section(heading: str) -> tuple[str, bool]:
     if any(kw in heading_lower for kw in ["scope", "statement of work", "sow"]):
         return "scope_of_work", True
     return "other", False
+
+def has_requirement_keywords(text: str) -> bool:
+    keywords = ["shall", "must", "required", "requirement", "mandatory"]
+    text_lower = text.lower()
+    return any(kw in text_lower for kw in keywords)
+
+def is_table(text: str) -> bool:
+    lines = text.strip().split("\n")
+    if len(lines) < 3:
+        return False
+    if "|" in text or "\t" in text:
+        return True
+    if any("pricing" in line.lower() or "clin" in line.lower() or "line item" in line.lower() for line in lines[:5]):
+        return True
+    return False

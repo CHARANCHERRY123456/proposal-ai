@@ -1,4 +1,4 @@
-from rag.utils import count_tokens, is_heading, classify_section
+from rag.utils import count_tokens, is_heading, classify_section, has_requirement_keywords
 
 def chunk_by_structure(
     text: str,
@@ -46,6 +46,8 @@ def chunk_by_structure(
 def _split_section(text: str, section_info: dict, base_meta: dict, start_index: int, min_tokens: int, max_tokens: int) -> list[dict]:
     tokens = count_tokens(text)
     
+    requirement_flag = has_requirement_keywords(text)
+    
     if tokens <= max_tokens:
         return [{
             "text": text,
@@ -54,7 +56,8 @@ def _split_section(text: str, section_info: dict, base_meta: dict, start_index: 
                 "chunk_index": start_index,
                 "section_name": section_info["heading"],
                 "section_type": section_info["section_type"],
-                "is_critical": section_info["is_critical"]
+                "is_critical": section_info["is_critical"],
+                "requirement_flag": requirement_flag
             }
         }]
     
@@ -69,6 +72,7 @@ def _split_section(text: str, section_info: dict, base_meta: dict, start_index: 
         
         if current_tokens + para_tokens > max_tokens and current_chunk:
             chunk_text = "\n\n".join(current_chunk)
+            requirement_flag = has_requirement_keywords(chunk_text)
             chunks.append({
                 "text": chunk_text,
                 "metadata": {
@@ -76,7 +80,8 @@ def _split_section(text: str, section_info: dict, base_meta: dict, start_index: 
                     "chunk_index": chunk_index,
                     "section_name": section_info["heading"],
                     "section_type": section_info["section_type"],
-                    "is_critical": section_info["is_critical"]
+                    "is_critical": section_info["is_critical"],
+                    "requirement_flag": requirement_flag
                 }
             })
             chunk_index += 1
@@ -88,6 +93,7 @@ def _split_section(text: str, section_info: dict, base_meta: dict, start_index: 
     
     if current_chunk:
         chunk_text = "\n\n".join(current_chunk)
+        requirement_flag = has_requirement_keywords(chunk_text)
         chunks.append({
             "text": chunk_text,
             "metadata": {
@@ -95,7 +101,8 @@ def _split_section(text: str, section_info: dict, base_meta: dict, start_index: 
                 "chunk_index": chunk_index,
                 "section_name": section_info["heading"],
                 "section_type": section_info["section_type"],
-                "is_critical": section_info["is_critical"]
+                "is_critical": section_info["is_critical"],
+                "requirement_flag": requirement_flag
             }
         })
     

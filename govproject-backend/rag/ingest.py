@@ -7,6 +7,7 @@ from pathlib import Path
 
 from rag.parsers import parse_file
 from rag.chunker import chunk_by_structure
+from rag.utils import is_table
 from db import db
 
 # Resolve downloads dir from project root so it works from any cwd
@@ -74,6 +75,9 @@ async def run_ingest(
             safe_name = name.replace(" ", "_")[:80]
             chunk_id = f"{notice_id}_{safe_name}_{meta['chunk_index']}"
             
+            is_table_chunk = is_table(c["text"])
+            requirement_flag = meta.get("requirement_flag", False)
+            
             chunk_doc = {
                 "chunk_id": chunk_id,
                 "noticeId": notice_id,
@@ -82,6 +86,8 @@ async def run_ingest(
                 "section_name": meta.get("section_name", ""),
                 "section_type": meta.get("section_type", "other"),
                 "is_critical": meta.get("is_critical", False),
+                "requirement_flag": requirement_flag,
+                "is_table": is_table_chunk,
                 "chunk_index": meta["chunk_index"],
             }
             
@@ -91,14 +97,16 @@ async def run_ingest(
                 upsert=True
             )
             
-            doc_meta = {
-                "chunk_id": chunk_id,
-                "noticeId": str(notice_id),
-                "filename": str(name),
-                "section_type": meta.get("section_type", "other"),
-                "is_critical": str(meta.get("is_critical", False)),
-            }
-            docs.append({"id": chunk_id, "text": c["text"], "meta": doc_meta})
+            if not is_table_chunk:
+                doc_meta = {
+                    "chunk_id": chunk_id,
+                    "noticeId": str(notice_id),
+                    "filename": str(name),
+                    "section_type": meta.get("section_type", "other"),
+                    "is_critical": str(meta.get("is_critical", False)),
+                    "requirement_flag": str(requirement_flag),
+                }
+                docs.append({"id": chunk_id, "text": c["text"], "meta": doc_meta})
 
     if not docs:
         return 0
