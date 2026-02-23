@@ -19,3 +19,10 @@ class RefineDraftRequest(BaseModel):
     companyId: str
     currentDraft: str
     refinementPrompt: str
+
+
+class DownloadPdfRequest(BaseModel):
+    """Request body for POST /draft-proposal/download-pdf."""
+    noticeId: str
+    companyId: str
+    draftText: str

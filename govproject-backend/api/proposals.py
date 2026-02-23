@@ -1,11 +1,13 @@
 """Proposal / draft-proposal endpoints."""
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
 from models.opportunity import get_opportunities_collection
 from models.user_profile import get_user_profiles_collection
-from schemas.api_schemas import DraftProposalRequest, RefineDraftRequest
+from schemas.api_schemas import DraftProposalRequest, RefineDraftRequest, DownloadPdfRequest
 from services.proposal_service import get_proposal_details, refine_draft, build_context
+from services.pdf_generator import generate_pdf
 from rag.retrieve import retrieve
 
 router = APIRouter()
@@ -60,3 +62,39 @@ async def refine_proposal(req: RefineDraftRequest):
         "needsClarification": False,
         "draft": refined,
     }
+
+
+@router.post("/download-pdf")
+async def download_pdf(req: DownloadPdfRequest):
+    """Generate and download proposal draft as PDF."""
+    opp = await get_opportunities_collection().find_one({"noticeId": req.noticeId})
+    profile = await get_user_profiles_collection().find_one({"companyId": req.companyId})
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    if not profile:
+        raise HTTPException(status_code=404, detail="User profile not found")
+    
+    if not req.draftText:
+        raise HTTPException(status_code=400, detail="No draft text provided")
+    
+    # Generate PDF
+    try:
+        opp_title = opp.get("title", "Proposal")
+        company_name = profile.get("companyName", "")
+        pdf_buffer = generate_pdf(req.draftText, title=opp_title, company_name=company_name)
+        
+        # Generate filename
+        notice_id = opp.get("noticeId", "proposal")
+        filename = f"proposal_{notice_id}.pdf"
+        
+        return Response(
+            content=pdf_buffer.read(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation not available: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")

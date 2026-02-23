@@ -22,6 +22,7 @@ import {
   RefreshCw,
   MessageSquare,
   History,
+  Download,
 } from "lucide-react";
 
 // Simple markdown-to-sections parser
@@ -132,6 +133,43 @@ const ProposalReview = () => {
     },
   });
 
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!noticeId || !companyId || !currentDraft) return;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://127.0.0.1:8002"}/draft-proposal/download-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Company-Id": companyId,
+        },
+        body: JSON.stringify({ noticeId, companyId, draftText: currentDraft }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to generate PDF");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `proposal_${noticeId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert(`Error downloading PDF: ${(error as Error).message}`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // Debug: Log citation data
   useEffect(() => {
     if (data) {
@@ -212,6 +250,25 @@ const ProposalReview = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleDownloadPDF}
+              disabled={isDownloading || !currentDraft}
+              className="gap-2"
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </>
+              )}
+            </Button>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full">
               <CheckCircle2 className="w-3.5 h-3.5" /> Draft ready
             </span>
