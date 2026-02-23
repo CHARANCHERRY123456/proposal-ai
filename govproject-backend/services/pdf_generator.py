@@ -18,8 +18,27 @@ except ImportError:
     REPORTLAB_AVAILABLE = False
 
 
+def remove_citations(text: str) -> str:
+    """Remove citation markers like [1], [2], [1, 2, 3] from text for clean PDF output."""
+    import re
+    # Remove single citations [1], [2], etc.
+    text = re.sub(r'\[\d+\]', '', text)
+    # Remove comma-separated citations [1, 2, 3], [1, 2, 3, 4, 5], etc.
+    text = re.sub(r'\[\d+(?:,\s*\d+)*\]', '', text)
+    # Clean up extra spaces that might be left
+    text = re.sub(r'\s+', ' ', text)
+    # Clean up spaces before punctuation
+    text = re.sub(r'\s+([.,;:!?])', r'\1', text)
+    # Clean up multiple spaces
+    text = re.sub(r' {2,}', ' ', text)
+    return text.strip()
+
+
 def markdown_to_paragraphs(text: str, styles) -> list:
     """Convert markdown text to ReportLab Paragraph objects."""
+    # Remove citations for clean professional PDF
+    text = remove_citations(text)
+    
     elements = []
     lines = text.split("\n")
     current_paragraph = []
