@@ -67,22 +67,29 @@ function renderMarkdown(text: string, allChunks?: RagChunk[]) {
   const boldify = (s: string) =>
     s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Process citations: [1], [2], etc. -> clickable citation links
+  // Process citations: [1], [2], etc. -> clickable citation links with spacing
   const processCitations = (text: string, chunks?: RagChunk[]) => {
     if (!chunks || chunks.length === 0) {
       return text.replace(/\[(\d+)\]/g, '<span class="citation-ref">[$1]</span>');
     }
     
-    return text.replace(/\[(\d+)\]/g, (match, num) => {
-      const index = parseInt(num, 10) - 1;
-      if (index >= 0 && index < chunks.length) {
-        const chunk = chunks[index];
-        const filename = (chunk.metadata?.filename as string || `Source ${num}`).replace(/\.[^/.]+$/, "");
-        const score = ((chunk.score || 0) * 100).toFixed(0);
-        return `<a href="#source-${chunk.id || index}" class="citation-link" title="Source: ${filename} (${score}% match)" data-chunk-index="${index}">[${num}]</a>`;
-      }
-      return match;
-    });
+    // Add space before citations and handle multiple citations like [1, 2, 3]
+    return text
+      .replace(/(\S)\[(\d+)\]/g, '$1 [$2]') // Add space before single citation
+      .replace(/\[(\d+),(\d+)\]/g, '[$1], [$2]') // Add space in comma-separated citations
+      .replace(/\[(\d+),(\d+),(\d+)\]/g, '[$1], [$2], [$3]') // Handle 3 citations
+      .replace(/\[(\d+),(\d+),(\d+),(\d+)\]/g, '[$1], [$2], [$3], [$4]') // Handle 4 citations
+      .replace(/\[(\d+),(\d+),(\d+),(\d+),(\d+)\]/g, '[$1], [$2], [$3], [$4], [$5]') // Handle 5 citations
+      .replace(/\[(\d+)\]/g, (match, num) => {
+        const index = parseInt(num, 10) - 1;
+        if (index >= 0 && index < chunks.length) {
+          const chunk = chunks[index];
+          const filename = (chunk.metadata?.filename as string || `Source ${num}`).replace(/\.[^/.]+$/, "");
+          const score = ((chunk.score || 0) * 100).toFixed(0);
+          return `<a href="#source-${chunk.id || index}" class="citation-link" title="Source: ${filename} (${score}% match)" data-chunk-index="${index}">[${num}]</a>`;
+        }
+        return match;
+      });
   };
 
   for (const line of lines) {
