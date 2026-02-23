@@ -34,6 +34,13 @@ async def refine_proposal(req: RefineDraftRequest):
     if not profile:
         raise HTTPException(status_code=404, detail="User profile not found")
     
+    # Fetch full description text
+    from services.proposal_service import fetch_description_text
+    description_text = ""
+    description_url = opp.get("description")
+    if description_url:
+        description_text = await fetch_description_text(description_url)
+    
     # Retrieve RAG chunks for context
     notice_id = opp.get("noticeId") or ""
     rag_chunks = []
@@ -45,7 +52,7 @@ async def refine_proposal(req: RefineDraftRequest):
             rag_chunks = []
     
     # Build context
-    context = build_context(opp, profile, rag_chunks)
+    context = build_context(opp, profile, rag_chunks, description_text)
     
     # Refine draft
     refined = refine_draft(context, req.currentDraft, req.refinementPrompt)

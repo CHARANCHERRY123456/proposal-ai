@@ -85,6 +85,39 @@ def download_attachments(notice_id: str, resource_links: list[str]) -> list[dict
         result.append(item)
     return result
 
+
+async def fetch_description_text(description_url: str) -> str:
+    """Fetch full description text from SAM.gov description URL."""
+    if not description_url:
+        return ""
+    
+    api_key = os.getenv("SAM_API_KEY")
+    if not api_key:
+        import logging
+        logging.getLogger(__name__).warning("SAM_API_KEY not set, cannot fetch description text")
+        return ""
+    
+    try:
+        # Append API key to URL
+        separator = "&" if "?" in description_url else "?"
+        url_with_key = f"{description_url}{separator}api_key={api_key}"
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url_with_key)
+            response.raise_for_status()
+            # Description endpoint returns text/plain or JSON with text field
+            content_type = response.headers.get("content-type", "").lower()
+            if "application/json" in content_type:
+                data = response.json()
+                # Try common field names
+                return data.get("noticeText") or data.get("description") or data.get("text") or response.text
+            else:
+                return response.text
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to fetch description from {description_url}: {e}")
+        return ""
+
 # --- Proposal details (opportunity + company + attachments) ---
 
 OPPORTUNITY_KEYS = (
@@ -125,6 +158,15 @@ async def get_proposal_details(
     stored_files = download_attachments(notice_id, resource_links)
     folder_for_notice = os.path.join(ATTACHMENTS_DIR, notice_id) if notice_id else ATTACHMENTS_DIR
 
+    # Fetch full description text from description URL
+    description_text = ""
+    description_url = opp.get("description")
+    if description_url:
+        description_text = await fetch_description_text(description_url)
+        if description_text:
+            import logging
+            logging.getLogger(__name__).info(f"[DESCRIPTION] Fetched {len(description_text)} characters of description text")
+    
     # RAG: ingest (so chunks have text in metadata) then retrieve
     rag_chunks = []
     if notice_id:
@@ -161,7 +203,7 @@ async def get_proposal_details(
     }
 
     if include_draft:
-        context = build_context(opp, profile, rag_chunks)
+        context = build_context(opp, profile, rag_chunks, description_text)
         out["draft"] = generate_draft(context, rag_chunks)
 
     return out
@@ -169,7 +211,7 @@ async def get_proposal_details(
 # --- Context text for LLM (used when draft generation is enabled) ---
 
 
-def _build_opportunity_text(opp: dict) -> str:
+def _build_opportunity_text(opp: dict, description_text: str = "") -> str:
     parts = [
         f"Title: {opp.get('title', '')}",
         f"Solicitation Number: {opp.get('solicitationNumber', '')}",
@@ -182,7 +224,9 @@ def _build_opportunity_text(opp: dict) -> str:
     ]
     if opp.get("scopeOfWorkText"):
         parts.append(f"Scope of Work:\n{opp['scopeOfWorkText']}")
-    if opp.get("description"):
+    if description_text:
+        parts.append(f"\n--- FULL NOTICE DESCRIPTION ---\n{description_text}")
+    elif opp.get("description"):
         parts.append(f"Description URL: {opp['description']}")
     return "\n".join(parts)
 
@@ -208,10 +252,10 @@ def _build_profile_text(profile: dict) -> str:
     return "\n".join(parts)
 
 
-def build_context(opp: dict, profile: dict, rag_chunks: list[dict] | None = None) -> str:
-    """Single text block for LLM: solicitation + retrieved RFP chunks + firm profile."""
+def build_context(opp: dict, profile: dict, rag_chunks: list[dict] | None = None, description_text: str = "") -> str:
+    """Single text block for LLM: solicitation + full description + retrieved RFP chunks + firm profile."""
     parts = [
-        "--- SOLICITATION ---\n" + _build_opportunity_text(opp),
+        "--- SOLICITATION ---\n" + _build_opportunity_text(opp, description_text),
         "\n\n--- FIRM PROFILE ---\n" + _build_profile_text(profile),
     ]
     if rag_chunks:

@@ -35,70 +35,113 @@ def remove_citations(text: str) -> str:
 
 
 def markdown_to_paragraphs(text: str, styles) -> list:
-    """Convert markdown text to ReportLab Paragraph objects."""
+    """Convert markdown text to ReportLab Paragraph objects with proper formatting."""
     # Remove citations for clean professional PDF
     text = remove_citations(text)
     
+    # Split text by headings that might be inline (e.g., "### 1. Heading Text content")
+    # Pattern: ### followed by number and heading, then content
+    parts = re.split(r'(###\s+\d+\.\s+[^\n]+)', text)
+    
     elements = []
-    lines = text.split("\n")
     current_paragraph = []
     
-    for line in lines:
-        line = line.strip()
-        if not line:
-            if current_paragraph:
-                para_text = " ".join(current_paragraph)
-                elements.append(Paragraph(para_text, styles["Normal"]))
-                elements.append(Spacer(1, 0.1 * inch))
-                current_paragraph = []
+    for part in parts:
+        part = part.strip()
+        if not part:
             continue
         
-        # Check for headings
-        if line.startswith("# "):
+        # Check if this part is a heading (starts with ###)
+        if part.startswith("### "):
+            # Flush current paragraph
             if current_paragraph:
                 para_text = " ".join(current_paragraph)
-                elements.append(Paragraph(para_text, styles["Normal"]))
-                elements.append(Spacer(1, 0.1 * inch))
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
                 current_paragraph = []
-            elements.append(Paragraph(line[2:], styles["Heading1"]))
+            
+            # Extract heading number and text (e.g., "### 1. Executive Summary")
+            match = re.match(r'###\s+(\d+\.)\s+(.+)', part)
+            if match:
+                heading_num = match.group(1)
+                heading_text = match.group(2)
+                # Add heading with number
+                elements.append(Spacer(1, 0.2 * inch))
+                elements.append(Paragraph(f"{heading_num} {heading_text}", styles["Heading3"]))
+                elements.append(Spacer(1, 0.1 * inch))
+            else:
+                # Just the heading text
+                heading_text = part[4:].strip()
+                elements.append(Spacer(1, 0.2 * inch))
+                elements.append(Paragraph(heading_text, styles["Heading3"]))
+                elements.append(Spacer(1, 0.1 * inch))
+        
+        elif part.startswith("## "):
+            if current_paragraph:
+                para_text = " ".join(current_paragraph)
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
+                current_paragraph = []
+            heading_text = part[3:].strip()
             elements.append(Spacer(1, 0.2 * inch))
-        elif line.startswith("## "):
+            elements.append(Paragraph(heading_text, styles["Heading2"]))
+            elements.append(Spacer(1, 0.12 * inch))
+        
+        elif part.startswith("# "):
             if current_paragraph:
                 para_text = " ".join(current_paragraph)
-                elements.append(Paragraph(para_text, styles["Normal"]))
-                elements.append(Spacer(1, 0.1 * inch))
+                if para_text.strip():
+                    para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                    elements.append(Paragraph(para_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.12 * inch))
                 current_paragraph = []
-            elements.append(Paragraph(line[3:], styles["Heading2"]))
+            heading_text = part[2:].strip()
+            elements.append(Spacer(1, 0.25 * inch))
+            elements.append(Paragraph(heading_text, styles["Heading1"]))
             elements.append(Spacer(1, 0.15 * inch))
-        elif line.startswith("### "):
-            if current_paragraph:
-                para_text = " ".join(current_paragraph)
-                elements.append(Paragraph(para_text, styles["Normal"]))
-                elements.append(Spacer(1, 0.1 * inch))
-                current_paragraph = []
-            elements.append(Paragraph(line[4:], styles["Heading3"]))
-            elements.append(Spacer(1, 0.1 * inch))
-        elif line.startswith("- ") or line.startswith("* "):
-            if current_paragraph:
-                para_text = " ".join(current_paragraph)
-                elements.append(Paragraph(para_text, styles["Normal"]))
-                elements.append(Spacer(1, 0.1 * inch))
-                current_paragraph = []
-            # Bullet point - handle bold text properly
-            bullet_text = line[2:].strip()
-            # Replace **text** with <b>text</b>
-            bullet_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', bullet_text)
-            elements.append(Paragraph(f"• {bullet_text}", styles["Normal"]))
-            elements.append(Spacer(1, 0.05 * inch))
+        
         else:
-            # Regular paragraph text - handle bold text properly
-            line = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line)
-            current_paragraph.append(line)
+            # Regular content - split by lines and process
+            lines = part.split("\n")
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    if current_paragraph:
+                        para_text = " ".join(current_paragraph)
+                        if para_text.strip():
+                            para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                            elements.append(Paragraph(para_text, styles["Normal"]))
+                            elements.append(Spacer(1, 0.12 * inch))
+                        current_paragraph = []
+                    continue
+                
+                if line.startswith("- ") or line.startswith("* "):
+                    if current_paragraph:
+                        para_text = " ".join(current_paragraph)
+                        if para_text.strip():
+                            para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+                            elements.append(Paragraph(para_text, styles["Normal"]))
+                            elements.append(Spacer(1, 0.12 * inch))
+                        current_paragraph = []
+                    bullet_text = line[2:].strip()
+                    bullet_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', bullet_text)
+                    elements.append(Paragraph(f"• {bullet_text}", styles["Normal"]))
+                    elements.append(Spacer(1, 0.06 * inch))
+                else:
+                    line = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line)
+                    current_paragraph.append(line)
     
     # Add remaining paragraph
     if current_paragraph:
         para_text = " ".join(current_paragraph)
-        elements.append(Paragraph(para_text, styles["Normal"]))
+        if para_text.strip():
+            para_text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', para_text)
+            elements.append(Paragraph(para_text, styles["Normal"]))
+            elements.append(Spacer(1, 0.12 * inch))
     
     return elements
 
@@ -136,37 +179,45 @@ def generate_pdf(draft_text: str, title: str = "Proposal Draft", company_name: O
     heading1_style = ParagraphStyle(
         "CustomHeading1",
         parent=styles["Heading1"],
-        fontSize=14,
+        fontSize=16,
         textColor="black",
         spaceAfter=12,
         spaceBefore=12,
+        fontName="Helvetica-Bold",
+        alignment=0,  # Left align
     )
     
     heading2_style = ParagraphStyle(
         "CustomHeading2",
         parent=styles["Heading2"],
-        fontSize=12,
+        fontSize=14,
         textColor="black",
         spaceAfter=10,
         spaceBefore=10,
+        fontName="Helvetica-Bold",
+        alignment=0,
     )
     
     heading3_style = ParagraphStyle(
         "CustomHeading3",
         parent=styles["Heading3"],
-        fontSize=11,
+        fontSize=12,
         textColor="black",
         spaceAfter=8,
         spaceBefore=8,
+        fontName="Helvetica-Bold",
+        alignment=0,
     )
     
     normal_style = ParagraphStyle(
         "CustomNormal",
         parent=styles["Normal"],
-        fontSize=10,
+        fontSize=11,
         textColor="black",
-        leading=14,
-        spaceAfter=6,
+        leading=16,
+        spaceAfter=8,
+        alignment=4,  # Justify text
+        firstLineIndent=0,
     )
     
     custom_styles = {
