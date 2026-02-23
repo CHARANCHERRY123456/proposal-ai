@@ -1,6 +1,5 @@
-"""Authentication endpoints."""
+"""Authentication endpoints. Simple demo: company ID only, no JWT."""
 
-import secrets
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -22,18 +21,15 @@ class LoginResponse(BaseModel):
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest):
     """
-    Simple authentication: verify companyId exists, return a token.
-    For demo purposes, we generate a simple token. In production, use JWT.
+    Simple auth: verify companyId exists in user_profiles, return same companyId.
+    Frontend stores it in localStorage and sends it (e.g. as Bearer) on each request.
     """
     profile = await get_user_profiles_collection().find_one({"companyId": req.companyId})
     if not profile:
         raise HTTPException(status_code=404, detail="Company ID not found. Please create a user profile first.")
-    
-    # Simple token generation (for demo). In production, use proper JWT.
-    token = secrets.token_urlsafe(32)
-    
+
     return LoginResponse(
-        access_token=token,
+        access_token=req.companyId,
         token_type="bearer",
         companyId=req.companyId,
     )

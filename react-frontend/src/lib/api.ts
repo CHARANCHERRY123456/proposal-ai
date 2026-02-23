@@ -1,16 +1,16 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem("access_token");
+  const companyId = localStorage.getItem("company_id") || localStorage.getItem("access_token");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  if (companyId) {
+    headers["X-Company-Id"] = companyId;
   }
 
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -20,6 +20,7 @@ async function request<T>(
 
   if (res.status === 401) {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("company_id");
     window.location.href = "/login";
     throw new Error("Unauthorized");
   }
