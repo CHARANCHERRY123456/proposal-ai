@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { FileText, ArrowRight, Shield } from "lucide-react";
 
 const Login = () => {
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useState("sg-security-001");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { login } = useAuth();

@@ -17,7 +17,7 @@ GovPreneurs AI — How the AI generates the proposal.
    - Attachments (e.g. PDF) for the notice are downloaded to `downloads/<noticeId>/`.
    - Each file is parsed (PDF → text) and split into **chunks** using our context-aware chunking strategy (see `docs/CHUNKING_STRATEGY.md` for details).
    - Chunking: 400-600 tokens per chunk, respects document structure (headings, sections), detects requirements, handles tables separately, tracks amendments.
-   - Metadata: `noticeId`, `filename`, `chunk_index`, `section_type`, `requirement_flag`, `is_table`, `amendment_number`, `is_latest_version`.
+   - Metadata: `noticeId`, `filename`, `chunk_index`, `section_type`, `requirement_flag`, `is_table`, `amendment_number`, `is_latest_version`. `text`
 
 2. **Index**
    - Each chunk is embedded (Gemini embedding model) and upserted into Pinecone with `noticeId` so we can filter by opportunity.
