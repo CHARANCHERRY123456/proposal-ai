@@ -17,6 +17,7 @@ app = FastAPI(title="GovPreneurs API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://proposal-ai-one.vercel.app",  # Production frontend
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "http://localhost:5173",
