@@ -41,6 +41,60 @@ def chunk_by_structure(
             section_chunks = _split_section(section_text, current_section, meta, index, min_tokens, max_tokens)
             chunks.extend(section_chunks)
     
+    if not chunks and text:
+        chunks = _semantic_fallback(text, meta, min_tokens, max_tokens)
+    
+    return chunks
+
+def _semantic_fallback(text: str, base_meta: dict, min_tokens: int, max_tokens: int) -> list[dict]:
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if not paragraphs:
+        return []
+    
+    chunks = []
+    current_chunk = []
+    current_tokens = 0
+    index = 0
+    
+    for para in paragraphs:
+        para_tokens = count_tokens(para)
+        
+        if current_tokens + para_tokens > max_tokens and current_chunk:
+            chunk_text = "\n\n".join(current_chunk)
+            requirement_flag = has_requirement_keywords(chunk_text)
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **base_meta,
+                    "chunk_index": index,
+                    "section_name": "",
+                    "section_type": "other",
+                    "is_critical": False,
+                    "requirement_flag": requirement_flag
+                }
+            })
+            index += 1
+            current_chunk = [para]
+            current_tokens = para_tokens
+        else:
+            current_chunk.append(para)
+            current_tokens += para_tokens
+    
+    if current_chunk:
+        chunk_text = "\n\n".join(current_chunk)
+        requirement_flag = has_requirement_keywords(chunk_text)
+        chunks.append({
+            "text": chunk_text,
+            "metadata": {
+                **base_meta,
+                "chunk_index": index,
+                "section_name": "",
+                "section_type": "other",
+                "is_critical": False,
+                "requirement_flag": requirement_flag
+            }
+        })
+    
     return chunks
 
 def _split_section(text: str, section_info: dict, base_meta: dict, start_index: int, min_tokens: int, max_tokens: int) -> list[dict]:

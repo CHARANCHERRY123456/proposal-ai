@@ -39,9 +39,20 @@ async def run_ingest(
     chunk them, and upsert to the vector store. Returns number of chunks upserted.
     Skips if chunks already exist for this notice_id.
     """
-    existing_count = await db.chunks.count_documents({"noticeId": notice_id})
+    existing_count = await db.chunks.count_documents({"noticeId": notice_id, "is_latest_version": True})
     if existing_count > 0:
         return existing_count
+    
+    await db.chunks.update_many(
+        {"noticeId": notice_id},
+        {"$set": {"is_latest_version": False}}
+    )
+    
+    latest_amendment = await db.chunks.find_one(
+        {"noticeId": notice_id},
+        sort=[("amendment_number", -1)]
+    )
+    amendment_number = (latest_amendment.get("amendment_number", -1) + 1) if latest_amendment else 0
     
     dir_path = DOWNLOAD_DIR / notice_id
     if not dir_path.is_dir():
@@ -89,6 +100,8 @@ async def run_ingest(
                 "requirement_flag": requirement_flag,
                 "is_table": is_table_chunk,
                 "chunk_index": meta["chunk_index"],
+                "amendment_number": amendment_number,
+                "is_latest_version": True,
             }
             
             await db.chunks.replace_one(

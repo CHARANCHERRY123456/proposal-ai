@@ -133,7 +133,8 @@ async def get_proposal_details(
             from rag.retrieve import retrieve
             await run_ingest(notice_id)
             query = (opp.get("title") or "") + " scope requirements evaluation criteria"
-            rag_chunks = retrieve(query.strip() or "requirements", top_k=rag_top_k, notice_id=notice_id)
+            from rag.retrieve import retrieve
+            rag_chunks = await retrieve(query.strip() or "requirements", top_k=rag_top_k, notice_id=notice_id)
         except FileNotFoundError:
             rag_chunks = []
         except Exception:
