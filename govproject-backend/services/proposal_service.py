@@ -162,7 +162,7 @@ async def get_proposal_details(
 
     if include_draft:
         context = build_context(opp, profile, rag_chunks)
-        out["draft"] = generate_draft(context)
+        out["draft"] = generate_draft(context, rag_chunks)
 
     return out
 
@@ -215,12 +215,31 @@ def build_context(opp: dict, profile: dict, rag_chunks: list[dict] | None = None
         "\n\n--- FIRM PROFILE ---\n" + _build_profile_text(profile),
     ]
     if rag_chunks:
-        chunk_texts = [c.get("text", "").strip() for c in rag_chunks if c.get("text")]
-        if chunk_texts:
+        chunk_sections = []
+        for idx, chunk in enumerate(rag_chunks, 1):
+            text = chunk.get("text", "").strip()
+            if not text:
+                continue
+            filename = chunk.get("metadata", {}).get("filename", f"Source {idx}")
+            section_name = chunk.get("metadata", {}).get("section_name", "")
+            section_type = chunk.get("metadata", {}).get("section_type", "other")
+            
+            # Build labeled source
+            source_label = f"[Source {idx}]"
+            source_header = f"{source_label} From: {filename}"
+            if section_name:
+                source_header += f" | Section: {section_name}"
+            if section_type != "other":
+                source_header += f" | Type: {section_type}"
+            
+            chunk_sections.append(f"{source_header}\n{text}")
+        
+        if chunk_sections:
             parts.insert(
                 1,
                 "\n\n--- RETRIEVED SOLICITATION SECTIONS (from RFP/attachments) ---\n"
-                + "\n\n".join(chunk_texts),
+                "IMPORTANT: When referencing information from these sources in your proposal, cite them using [1], [2], [3], etc. matching the Source number.\n"
+                + "\n\n".join(chunk_sections),
             )
     return "".join(parts)
 
@@ -274,8 +293,18 @@ TONE:
 - No marketing language.
 - No apologies or statements of inability.
 
+CITATIONS AND SOURCES (CRITICAL):
+- You will be provided with retrieved RFP sections labeled as [Source 1], [Source 2], etc.
+- For EVERY claim, requirement reference, or technical detail that comes from the RFP sources, include an inline citation in the format [1], [2], [3], etc.
+- Citations MUST appear immediately after the relevant claim or statement.
+- Example: "The contractor shall provide 24/7 support [1] and maintain ISO 27001 certification [2]."
+- If referencing company capabilities from the firm profile, you may cite as [Company Profile] or omit citation if it's general company information.
+- DO NOT cite for generic statements or common knowledge.
+- DO cite for: specific requirements, evaluation criteria, technical specifications, deadlines, compliance requirements, and any details from the RFP documents.
+
 TRACEABILITY:
 - Every capability claim must be supported by a referenced item from the company context.
+- Every requirement reference must cite the source document.
 
 LENGTH:
 - Be concise and evaluator-focused.
@@ -292,12 +321,18 @@ If required information is missing, explicitly state:
 """
 
 
-def generate_draft(context: str) -> str:
+def generate_draft(context: str, rag_chunks: list[dict] | None = None) -> str:
     """Produce a proposal draft from context using Gemini (via GeminiClient)."""
     gemini = GeminiClient()
+    
+    citation_note = ""
+    if rag_chunks:
+        citation_note = "\n\nCITATION FORMAT: Use [1], [2], [3], etc. to cite sources. Each number corresponds to the Source number in the retrieved sections above."
+    
     prompt = (
         f"{SYSTEM_PROMPT}\n\n--- Provided Context ---\n{context}\n\n--- Task ---\n"
-        "Write a proposal draft based on the above context only."
+        f"Write a proposal draft based on the above context only.{citation_note}\n"
+        "Remember: Include inline citations [1], [2], etc. immediately after any claim or requirement that comes from the RFP sources."
     )
     return gemini.ask(prompt).strip()
 

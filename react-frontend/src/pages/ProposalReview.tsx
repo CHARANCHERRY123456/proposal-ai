@@ -45,8 +45,8 @@ function parseSections(draft: string): { heading: string; content: string }[] {
   return sections;
 }
 
-// Render simple markdown (bold, lists, paragraphs)
-function renderMarkdown(text: string) {
+// Render simple markdown with citations
+function renderMarkdown(text: string, allChunks?: RagChunk[]) {
   const lines = text.trim().split("\n");
   const elements: React.ReactNode[] = [];
   let listItems: string[] = [];
@@ -56,7 +56,7 @@ function renderMarkdown(text: string) {
       elements.push(
         <ul key={`list-${elements.length}`} className="list-disc list-inside space-y-1 text-sm text-foreground/90 mb-3">
           {listItems.map((item, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: boldify(item) }} />
+            <li key={i} dangerouslySetInnerHTML={{ __html: processCitations(boldify(item), allChunks) }} />
           ))}
         </ul>
       );
@@ -66,6 +66,24 @@ function renderMarkdown(text: string) {
 
   const boldify = (s: string) =>
     s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Process citations: [1], [2], etc. -> clickable citation links
+  const processCitations = (text: string, chunks?: RagChunk[]) => {
+    if (!chunks || chunks.length === 0) {
+      return text.replace(/\[(\d+)\]/g, '<span class="citation-ref">[$1]</span>');
+    }
+    
+    return text.replace(/\[(\d+)\]/g, (match, num) => {
+      const index = parseInt(num, 10) - 1;
+      if (index >= 0 && index < chunks.length) {
+        const chunk = chunks[index];
+        const filename = (chunk.metadata?.filename as string || `Source ${num}`).replace(/\.[^/.]+$/, "");
+        const score = ((chunk.score || 0) * 100).toFixed(0);
+        return `<a href="#source-${chunk.id || index}" class="citation-link" title="Source: ${filename} (${score}% match)" data-chunk-index="${index}">[${num}]</a>`;
+      }
+      return match;
+    });
+  };
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -78,7 +96,7 @@ function renderMarkdown(text: string) {
           <p
             key={`p-${elements.length}`}
             className="text-sm text-foreground/90 leading-relaxed mb-3"
-            dangerouslySetInnerHTML={{ __html: boldify(trimmed) }}
+            dangerouslySetInnerHTML={{ __html: processCitations(boldify(trimmed), allChunks) }}
           />
         );
       }
@@ -104,6 +122,32 @@ const ProposalReview = () => {
     enabled: !!noticeId && !!companyId,
     retry: false,
   });
+
+  // Handle citation link clicks
+  useEffect(() => {
+    const handleCitationClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('citation-link')) {
+        e.preventDefault();
+        const href = target.getAttribute('href');
+        if (href) {
+          // Extract source ID from href (e.g., #source-123)
+          const sourceId = href.replace('#source-', '');
+          const sourceElement = document.getElementById(`source-${sourceId}`);
+          if (sourceElement) {
+            sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            sourceElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+            setTimeout(() => {
+              sourceElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+            }, 2000);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('click', handleCitationClick);
+    return () => document.removeEventListener('click', handleCitationClick);
+  }, [data?.ragChunks]);
 
   // Update current draft when initial data loads
   useEffect(() => {
@@ -283,7 +327,8 @@ const ProposalReview = () => {
             <div>
               <h1 className="text-2xl font-bold text-foreground mb-1">Your draft is ready</h1>
               <p className="text-muted-foreground text-sm">
-                Review the AI-generated proposal below. All claims are grounded in the provided sources.
+                Review the AI-generated proposal below. All claims are grounded in the provided sources. 
+                Click citation numbers <span className="text-primary font-semibold">[1]</span>, <span className="text-primary font-semibold">[2]</span>, etc. to view the source documents.
               </p>
             </div>
             <Button
@@ -402,18 +447,20 @@ const ProposalReview = () => {
             </div>
 
             {/* Sources */}
-            <div className="glass-card p-5">
+            <div className="glass-card p-5" id="sources-panel">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5" /> Sources & Evidence
               </h3>
               {data.ragChunks && data.ragChunks.length > 0 ? (
                 <>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {data.ragChunks.length} source{data.ragChunks.length !== 1 ? "s" : ""} used to generate this proposal
+                    {data.ragChunks.length} source{data.ragChunks.length !== 1 ? "s" : ""} used to generate this proposal. Click citations [1], [2], etc. in the draft to view sources.
                   </p>
                   <div className="space-y-2.5">
                     {data.ragChunks.map((chunk, i) => (
-                      <SourceChip key={chunk.id || i} chunk={chunk} index={i} />
+                      <div key={chunk.id || i} id={`source-${chunk.id || i}`}>
+                        <SourceChip chunk={chunk} index={i} />
+                      </div>
                     ))}
                   </div>
                 </>
@@ -491,7 +538,7 @@ function SectionCard({
       {expanded && (
         <>
           <div className="px-5 pb-4 border-t border-border pt-4">
-            {renderMarkdown(section.content)}
+            {renderMarkdown(section.content, allChunks)}
             
             {/* Show relevant citations for this section */}
             {relevantChunks.length > 0 && (
